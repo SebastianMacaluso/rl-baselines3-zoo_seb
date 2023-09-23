@@ -21,7 +21,7 @@ def train() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--algo", help="RL Algorithm", default="ppo", type=str, required=False, choices=list(ALGOS.keys()))
     parser.add_argument("--env", type=str, default="CartPole-v1", help="environment ID")
-    parser.add_argument("-tb", "--tensorboard-log", help="Tensorboard log dir", default="", type=str)
+    parser.add_argument("-tb", "--tensorboard-log", help="Tensorboard log dir", default="tensorboard_logs", type=str)
     parser.add_argument("-i", "--trained-agent", help="Path to a pretrained agent to continue training", default="", type=str)
     parser.add_argument(
         "--truncate-last-trajectory",
@@ -134,7 +134,7 @@ def train() -> None:
     parser.add_argument(
         "--track",
         action="store_true",
-        default=False,
+        default=True,
         help="if toggled, this experiment will be tracked with Weights and Biases",
     )
     parser.add_argument("--wandb-project-name", type=str, default="sb3", help="the wandb's project name")
@@ -251,7 +251,7 @@ def train() -> None:
 
     # Prepare experiment and launch hyperparameter optimization if needed
     results = exp_manager.setup_experiment()
-    if results is not None:
+    if results is not None: #only None when we do hyperparameter optimization
         model, saved_hyperparams = results
         if args.track:
             # we need to save the loaded hyperparameters
