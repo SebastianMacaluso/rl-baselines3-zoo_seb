@@ -47,6 +47,11 @@ if __name__ == "__main__":
         "--custom-objects", action="store_true", default=False, help="Use custom objects to solve loading issues"
     )
 
+    parser.add_argument(
+        "--video_id",
+        type=int,
+        help="id identifying each video",
+    )
     args = parser.parse_args()
 
     env_name: EnvironmentName = args.env

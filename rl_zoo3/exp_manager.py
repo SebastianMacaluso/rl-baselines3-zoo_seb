@@ -486,7 +486,7 @@ class ExperimentManager:
                     save_freq=self.save_freq,
                     save_path=self.save_path,
                     name_prefix="rl_model",
-                    verbose=1,
+                    verbose=2,
                 )
             )
 

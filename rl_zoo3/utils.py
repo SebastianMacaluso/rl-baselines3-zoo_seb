@@ -98,7 +98,7 @@ def get_wrapper_class(hyperparams: Dict[str, Any], key: str = "env_wrapper") -> 
                 kwargs = wrapper_dict[wrapper_name]
             else:
                 kwargs = {}
-            wrapper_module = importlib.import_module(get_module_name(wrapper_name))
+            wrapper_module = importlib.import_module(get_module_name(wrapper_name)) # import wrapper class, e.g. AtariWrapper from stable_baselines3.common.atari_wrappers.AtariWrapper (SM)
             wrapper_class = getattr(wrapper_module, get_class_name(wrapper_name))
             wrapper_classes.append(wrapper_class)
             wrapper_kwargs.append(kwargs)
