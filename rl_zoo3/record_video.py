@@ -16,12 +16,13 @@ if __name__ == "__main__":
     parser.add_argument("--env", help="Environment ID", type=EnvironmentName, default="CartPole-v1")
     parser.add_argument("-f", "--folder", help="Log folder", type=str, default="rl-trained-agents")
     parser.add_argument("-o", "--output-folder", help="Output folder", type=str)
-    parser.add_argument("-video_name", "--video_name", help="Video name", type=str)
+    parser.add_argument("--video-name", "--video_name", help="Video name", type=str)
     parser.add_argument("--algo", help="RL Algorithm", default="ppo", type=str, required=False, choices=list(ALGOS.keys()))
     parser.add_argument("-n", "--n-timesteps", help="Number of timesteps to run the environment", default=1000, type=int)
-    parser.add_argument("--custom_video_lenght", "--custom-video-lenght", help="custom_video_lenght", default=100, type=int)
+    parser.add_argument("--shift", help="Starting step to record videos", default=1000, type=int)
+    parser.add_argument("--custom-video-lenght", "--custom-video-lenght", help="custom_video_lenght", default=100, type=int)
     parser.add_argument("--n-envs", help="Number of environments", default=1, type=int)
-    parser.add_argument("--n_videos", help="Number of videos to generate", default=1, type=int)
+    parser.add_argument("--n-videos", help="Number of videos to generate", default=1, type=int)
     parser.add_argument("--render_fps", help="Video frame rate", default=30, type=int)
     parser.add_argument("--deterministic", action="store_true", default=False, help="Use deterministic actions")
     parser.add_argument("--stochastic", action="store_true", default=False, help="Use stochastic actions")
@@ -149,11 +150,17 @@ if __name__ == "__main__":
     else:
         video_folder = os.path.join(log_path, video_folder)
 
+    # stop = False
+    i_video = 0
+    i_step = 0 #step at which we start recording a video
+    shift = args.shift
+    save_clip = False
+
     # Note: apparently it renders by default
     env = VecVideoRecorder(
         env,
         video_folder,
-        record_video_trigger=lambda x: x == 0, #This means we start rercording from step 0. If not change to another step (integer)
+        record_video_trigger=lambda x: x == i_step, #This means we start rercording from step = i_step. If not change to another step (integer)
         video_length=video_length,
         name_prefix=name_prefix,
         render_fps=args.render_fps,
@@ -163,11 +170,15 @@ if __name__ == "__main__":
     obs = env.reset()
     lstm_states = None
     episode_starts = np.ones((env.num_envs,), dtype=bool)
-    stop = False
-    i_video = 0
+
+
     try:
         # for _ in range(video_length):
-        while i_video < args.n_videos:
+        while i_video < args.n_videos and i_step < video_length:
+            i_step+=1
+
+
+
             action, lstm_states = model.predict(
                 obs,  # type: ignore[arg-type]
                 state=lstm_states,
@@ -177,19 +188,97 @@ if __name__ == "__main__":
             if not args.no_render:
                 env.render()
             obs, reward, dones, information = env.step(action)  # type: ignore[assignment]
+
             if reward > 0:
-                ##"pad_hits_ball"
-                env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-args.custom_video_lenght::] #keep only the last relevant frames
-                env.close() # closes environment and saves the video
-                i+=1
+                if args.video_name == "pad_hits_ball" and i_step >= shift:
+                    # For shifts = [0,500], use custom_video_lenght = 80 and cut last 10 frames 
+                    custom_video_lenght = 80
+                    ##"pad_hits_ball"
+                    temp_frames = env.video_recorder.recorded_frames
+                    env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-custom_video_lenght:-5] #keep only the last relevant frames
+                    # env.close() # closes environment and saves the video
+
+                    save_clip = True
+
+
+                if args.video_name == "ball_destroys_bricks" and i_step >= shift:
+
+                    for _ in range(5):
+                        i_step+=1
+                        action, lstm_states = model.predict(
+                            obs,  # type: ignore[arg-type]
+                            state=lstm_states,
+                            episode_start=episode_starts,
+                            deterministic=deterministic,
+                        )
+                        if not args.no_render:
+                            env.render()
+                        obs, reward, dones, information = env.step(action)  # type: ignore[assignment]
+
+                    custom_video_lenght = 60
+                    ##"pad_hits_ball"
+                    temp_frames = env.video_recorder.recorded_frames
+                    env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-custom_video_lenght::] #keep only the last relevant frames
+                    # env.close() # closes environment and saves the video
+
+                    save_clip = True
+
 
             if dones:
-                print("Reward = ", reward, "dones = ", dones, " Information = ", information)
-                print("------"*10)
-                stop = True
-                env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-args.custom_video_lenght::] #keep only the last relevant frames
 
-                env.close() # closes environment and saves the video
+                if args.video_name == "pad_misses_to_hit_ball" and i_step >= shift:
+
+                    # for _ in range(5):
+                    #     i_step+=1
+                    #     action, lstm_states = model.predict(
+                    #         obs,  # type: ignore[arg-type]
+                    #         state=lstm_states,
+                    #         episode_start=episode_starts,
+                    #         deterministic=deterministic,
+                    #     )
+                    #     if not args.no_render:
+                    #         env.render()
+                    #     obs, reward, dones, information = env.step(action)  # type: ignore[assignment]
+
+                    custom_video_lenght = 60
+                    ##"pad_hits_ball"
+                    temp_frames = env.video_recorder.recorded_frames
+                    env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-custom_video_lenght::] #keep only the last relevant frames
+                    # env.close() # closes environment and saves the video
+
+                    save_clip = True
+
+            if save_clip:
+                            
+                env.save_video(str(i_step)+"_"+str(i_video)) #save video without closing environment
+                env.video_recorder.recorded_frames = temp_frames
+                    
+                save_clip = False
+                i_video+=1
+
+                # if i_video < args.n_videos:
+                #     # Note: apparently it renders by default
+                #     env = VecVideoRecorder(
+                #         env,
+                #         video_folder,
+                #         record_video_trigger=lambda x: x == i_step, #This means we start rercording from step 0. If not change to another step (integer)
+                #         video_length=video_length,
+                #         name_prefix=name_prefix,
+                #         render_fps=args.render_fps,
+                #         video_name=args.video_name,
+                #     )
+
+                #     obs = env.reset()
+                #     lstm_states = None
+                #     episode_starts = np.ones((env.num_envs,), dtype=bool)
+
+            # if dones:
+            #     print("Reward = ", reward, "dones = ", dones, " Information = ", information)
+            #     print("------"*10)
+            #     stop = True
+            #     env.video_recorder.recorded_frames = env.video_recorder.recorded_frames[-args.custom_video_lenght::] #keep only the last relevant frames
+
+            #     env.close() # closes environment and saves the video
 
             # if reward>0 or information[0]['lives']<5:
             #     print("Reward = ", reward, " Information = ", information)
@@ -199,7 +288,9 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
 
-    # env.close()
+    env.video_recorder.recorded_frames = [] # so that we don't save a final video
+    env.close()
+    # env.video_recorder.env.close()
 
 
 
